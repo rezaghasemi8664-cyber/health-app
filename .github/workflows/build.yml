@@ -1,0 +1,52 @@
+name: Build Kivy APK
+on: [push, workflow_dispatch]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          zip \
+          openjdk-11-jdk \
+          git \
+          autoconf \
+          automake \
+          libtool \
+          pkg-config \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          libtinfo5 \
+          cmake
+
+    - name: Install Buildozer
+      run: |
+        pip install buildozer
+        pip install Cython==0.29.33
+
+    - name: Initialize Buildozer
+      run: |
+        buildozer init
+
+    - name: Build APK
+      run: |
+        buildozer -v android debug
+        ls -la bin/
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: health-app-apk
+        path: bin/*.apk 
+        
