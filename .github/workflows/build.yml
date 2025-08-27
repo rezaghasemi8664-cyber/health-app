@@ -25,7 +25,7 @@ jobs:
           libtool \
           pkg-config \
           zlib1g-dev \
-          libncurses-dev \  # به جای نسخه‌های خاص \
+          libncurses-dev \
           cmake \
           libffi-dev \
           libssl-dev
