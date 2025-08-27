@@ -42,20 +42,52 @@ jobs:
       run: |
         buildozer init
 
-    # >>> STEP جدید: پذیرش مجوزهای Android SDK بعد از نصب اولیه SDK <<<
-    - name: Accept Android SDK licenses
+    # >>> ساخت APK با اسکریپت سفارشی که مجوزها را مدیریت می‌کند <<<
+    - name: Build APK with license handling
       run: |
-        echo "در حال پذیرش مجوزهای Android SDK..."
-        # صبر کنید تا SDK دانلود شود
-        sleep 10
-        # پذیرش خودکار همه مجوزها
-        yes | /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager --licenses
-        echo "✅ همه مجوزهای Android SDK پذیرفته شدند"
-
-    - name: Build APK with detailed logging
-      run: |
-        buildozer -v android debug 2>&1 | tee build.log || true
-        echo "Build process completed"
+        # ایجاد یک اسکریپت ساخت که مجوزها را مدیریت می‌کند
+        cat > custom_build.sh << 'EOF'
+        #!/bin/bash
+        
+        # اجرای buildozer برای دانلود SDK و NDK (بدون ساخت کامل)
+        echo "📦 Downloading Android SDK and NDK..."
+        buildozer android update 2>&1 | tee build.log
+        
+        # صبر کردن تا فایل‌ها دانلود و extract شوند
+        sleep 30
+        
+        # پیدا کردن مسیر واقعی sdkmanager
+        SDK_MANAGER_PATH=$(find ~/.buildozer -name "sdkmanager" -type f | head -1)
+        
+        if [ -n "$SDK_MANAGER_PATH" ]; then
+            echo "✅ Found sdkmanager at: $SDK_MANAGER_PATH"
+            
+            # پذیرش خودکار همه مجوزها
+            echo "📝 Accepting Android SDK licenses..."
+            yes | "$SDK_MANAGER_PATH" --licenses
+            
+            # نصب platform-tools و build-tools
+            echo "🔧 Installing platform-tools and build-tools..."
+            "$SDK_MANAGER_PATH" "platform-tools" "build-tools;34.0.0"
+        else
+            echo "❌ sdkmanager not found!"
+            echo "Trying alternative approach..."
+            
+            # روش جایگزین: ایجاد دستی فایل‌های مجوز
+            mkdir -p ~/.android/licenses
+            echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > ~/.android/licenses/android-sdk-license
+            echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ~/.android/licenses/android-sdk-license
+            echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-sdk-preview-license
+        fi
+        
+        # اجرای ساخت نهایی
+        echo "🚀 Starting final build..."
+        buildozer -v android debug 2>&1 | tee -a build.log
+        EOF
+        
+        # اجرای اسکریپت سفارشی
+        chmod +x custom_build.sh
+        ./custom_build.sh
         
     - name: Check build results
       run: |
@@ -64,12 +96,23 @@ jobs:
           ls -la bin/
           if ls bin/*.apk 1> /dev/null 2>&1; then
             echo "✅ APK file found!"
+            # آپلود APK به عنوان artifact
+            echo "APK_BUILT=true" >> $GITHUB_ENV
           else
             echo "❌ No APK file found"
+            echo "APK_BUILT=false" >> $GITHUB_ENV
           fi
         else
           echo "❌ Bin directory does not exist"
+          echo "APK_BUILT=false" >> $GITHUB_ENV
         fi
+        
+    - name: Upload APK artifact
+      if: env.APK_BUILT == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: health-app-apk
+        path: bin/*.apk
         
     - name: Upload logs for debugging
       uses: actions/upload-artifact@v4
