@@ -1,6 +1,21 @@
-- name: Install system dependencies
-  run: |
-    sudo apt-get update
+name: Build Kivy APK
+on: [push, workflow_dispatch]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.8'
+
+    - name: Install system dependencies
+      run: |
+      sudo apt-get update
     sudo apt-get install -y \
       zip \
       openjdk-17-jdk \
@@ -14,3 +29,40 @@
       cmake \
       libffi-dev \
       libssl-dev
+    - name: Install Buildozer and dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer
+        pip install Cython==0.29.33
+        pip install virtualenv
+
+    - name: Initialize Buildozer
+      run: |
+        buildozer init
+
+    - name: Build APK with detailed logging
+      run: |
+        buildozer -v android debug 2>&1 | tee build.log || true
+        echo "Build process completed"
+        
+    - name: Check build results
+      run: |
+        if [ -d "bin" ]; then
+          echo "📦 Bin directory contents:"
+          ls -la bin/
+          if ls bin/*.apk 1> /dev/null 2>&1; then
+            echo "✅ APK file found!"
+          else
+            echo "❌ No APK file found"
+          fi
+        else
+          echo "❌ Bin directory does not exist"
+        fi
+        
+    - name: Upload logs for debugging
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          build.log
+          .buildozer/
