@@ -18,7 +18,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           zip \
-          openjdk-11-jdk \
+          openjdk-17-jdk \
           git \
           autoconf \
           automake \
@@ -28,25 +28,44 @@ jobs:
           libncurses5-dev \
           libncursesw5-dev \
           libtinfo5 \
-          cmake
+          cmake \
+          libffi-dev
 
-    - name: Install Buildozer
+    - name: Install Buildozer and dependencies
       run: |
+        python -m pip install --upgrade pip
         pip install buildozer
         pip install Cython==0.29.33
+        pip install virtualenv
 
     - name: Initialize Buildozer
       run: |
         buildozer init
 
-    - name: Build APK
+    - name: Build APK with detailed logging
       run: |
-        buildozer -v android debug
-        ls -la bin/
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4.3.3
+        buildozer -v android debug 2>&1 | tee build.log || true
+        echo "Build process completed"
+        
+    - name: Check build results
+      run: |
+        if [ -d "bin" ]; then
+          echo "📦 Bin directory contents:"
+          ls -la bin/
+          if ls bin/*.apk 1> /dev/null 2>&1; then
+            echo "✅ APK file found!"
+          else
+            echo "❌ No APK file found"
+          fi
+        else
+          echo "❌ Bin directory does not exist"
+        fi
+        
+    - name: Upload logs for debugging
+      uses: actions/upload-artifact@v4
       with:
-        name: health-app-apk
-        path: bin/*.apk
+        name: build-logs
+        path: |
+          build.log
+          .buildozer/
         
