@@ -31,24 +31,6 @@ jobs:
           libssl-dev \
           unzip
 
-    # >>> STEP جدید: پذیرش مجوزهای Android SDK <<<
-    - name: Accept Android SDK licenses
-      run: |
-        # ایجاد دایرکتوری لازم برای SDK و licenses
-        mkdir -p ~/.android/licenses
-        # ایجاد فایل licenses و پذیرش همه مجوزها
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > ~/.android/licenses/android-sdk-license
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ~/.android/licenses/android-sdk-license
-        echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-sdk-preview-license
-        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> ~/.android/licenses/android-sdk-preview-license
-        echo "✅ مجوزها با موفقیت پذیرفته شدند"
-        # نمایش تأیید
-        echo "محتویات دایرکتوری licenses:"
-        ls -la ~/.android/licenses/
-        echo "محتویات فایل‌های مجوز:"
-        cat ~/.android/licenses/android-sdk-license
-        cat ~/.android/licenses/android-sdk-preview-license
-
     - name: Install Buildozer and dependencies
       run: |
         python -m pip install --upgrade pip
@@ -59,6 +41,16 @@ jobs:
     - name: Initialize Buildozer
       run: |
         buildozer init
+
+    # >>> STEP جدید: پذیرش مجوزهای Android SDK بعد از نصب اولیه SDK <<<
+    - name: Accept Android SDK licenses
+      run: |
+        echo "در حال پذیرش مجوزهای Android SDK..."
+        # صبر کنید تا SDK دانلود شود
+        sleep 10
+        # پذیرش خودکار همه مجوزها
+        yes | /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager --licenses
+        echo "✅ همه مجوزهای Android SDK پذیرفته شدند"
 
     - name: Build APK with detailed logging
       run: |
